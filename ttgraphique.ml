@@ -49,7 +49,19 @@ let rec trace_dot points mult = match points with
     lineto (x2+20) (y2t+20);
     trace_dot ((x2,y2)::q) mult;;
 
+(* Routine test graphique*)
+let (N,P) = initpmc ();;
+let bas = "mettre chose ici";;(* apprentissage, qui a des effets de bord et renvoie la liste des erreurs globales *)
 
+let dots = conversion bas 1;;
+
+clear_graph();;
+
+trace_cadre 1000 600 2 30 false;;
+
+set_color 0x000000;;
+
+trace_dot dots 600.;;
 
 
 

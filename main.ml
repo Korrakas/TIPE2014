@@ -15,7 +15,7 @@ let print_floatvect v =
 	print_string "|]";
 ;;
 
-let initpmc conf =
+let initpmc () =
 	let neur, poids = make_vect tailleH [||], make_vect tailleH [||]
 	in
 	let fillp pij t =
@@ -108,20 +108,26 @@ let modifpoids (neur,poids) grad erg =
 
 let apprentissage1 (N,P) (in_data,out_data) iterations =
 	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
+	let erg=ref 1. and ergt = ref 1. and l=ref [] in
 	if taillein<>tailleout then raise taille_incompatible;
 	for iter = 0 to iterations-1 do
+		ergt:=0.;
 		for train = 0 to taillein-1 do
 			entree N in_data.(train);
 			propagation (N,P);
-			modifpoids (N,P) (creergradient (N,P) out_data.(train)) (erreurglobale N out_data.(train));
+			erg:=erreurglobale N out_data.(train);
+			modifpoids (N,P) (creergradient (N,P) out_data.(train)) (!erg);
+			ergt:=!ergt+. !erg;
 		done;
+		l:=!ergt::(!l);
 	done;
+	rev !l;
 ;;
 
 let apprentissage2 (N,P) (in_data,out_data) marge =
 	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
 	if taillein<>tailleout then raise taille_incompatible;
-	let erg = ref 1. and ergt = ref 1. in
+	let erg = ref 1. and ergt = ref 1. and l = ref [] in
 	while !ergt > marge do
 		ergt:=0.;
 		for train = 0 to taillein-1 do

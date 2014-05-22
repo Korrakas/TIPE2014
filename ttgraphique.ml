@@ -51,7 +51,7 @@ let rec trace_dot points mult = match points with
 
 (* Routine test graphique*)
 let (N,P) = initpmc ();;
-let bas = "mettre chose ici";;(* apprentissage, qui a des effets de bord et renvoie la liste des erreurs globales *)
+let bas = apprentissage1 (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;1.|];[|-1.;1.|]|]) 1000;;(* apprentissage, qui a des effets de bord et renvoie la liste des erreurs globales *)
 
 let dots = conversion bas 1;;
 

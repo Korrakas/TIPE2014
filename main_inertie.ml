@@ -16,7 +16,7 @@ let print_floatvect v =
 ;;
 
 let initpmc () =
-	let neur, poids = make_vect tailleH [||], make_vect tailleH [||]
+	let neur, poids, souv = make_vect tailleH [||], make_vect tailleH [||], make_vect tailleH [||]
 	in
 	let fillp pij t =
 		for k = 1 to t-1 do (*pas de lien vers le biais*)
@@ -26,10 +26,12 @@ let initpmc () =
 	for i = 0 to tailleH - 1 do
 		neur.(i) <- make_vect config.(i) 0.;
 		poids.(i) <- make_vect config.(i) [||];
+		souv.(i) <- make_vect config.(i) [||];
 		neur.(i).(0) <- -1.;
 		if i <> tailleH - 1 then (*pas de liens externes pour la couche de sortie*) 
 		for j = 0 to config.(i) - 1 do
 			poids.(i).(j) <- make_vect config.(i+1) 0.;
+			souv.(i).(j) <- make_vect config.(i+1) 0.;
 			fillp poids.(i).(j) config.(i+1);
 		done;
 	done;
@@ -95,20 +97,24 @@ let creergradient (neur,poids) sortie =
 
 let nu = 0.1;;
 
+let alpha = 0.;;
 
-let modifpoids (neur,poids) grad erg =
+let modifpoids_inertiel (neur,poids,souvenir) grad erg =
 	for i = 0 to tailleH - 2 do
 		for j = 0 to config.(i) - 1 do
 			for h = 1 to config.(i+1) -1 do (*pas besoin de toucher le "poids vers le biais" qui ne doit de toute façon pas exister (0 ?) *)
-				poids.(i).(j).(h) <- poids.(i).(j).(h) +. nu*.grad.(i+1).(h)*.(actprime erg)*.neur.(i).(j); 
+				souvenir.(i).(j).(h) <- nu*.grad.(i+1).(h)*.(actprime erg)*.neur.(i).(j) + alpha*.souvenir.(i).(j).(h);
+				poids.(i).(j).(h) <- poids.(i).(j).(h) +. souvenir.(i).(j).(h); 
 			done;
 		done;
 	done;
+	memoire;
 ;;
 
-let apprentissage1 (N,P) (in_data,out_data) iterations =
+let apprentissage1_inertiel (N,P,S) (in_data,out_data) iterations =
 	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
 	let erg=ref 1. and ergt = ref 1. and l=ref [] in
+	let souv = ref (map_vect copy_vect P) in
 	if taillein<>tailleout then raise taille_incompatible;
 	for iter = 0 to iterations-1 do
 		ergt:=0.;
@@ -116,7 +122,7 @@ let apprentissage1 (N,P) (in_data,out_data) iterations =
 			entree N in_data.(train);
 			propagation (N,P);
 			erg:=erreurglobale N out_data.(train);
-			modifpoids (N,P) (creergradient (N,P) out_data.(train)) (!erg);
+			modifpoids_inertiel (N,P,S) (creergradient (N,P) out_data.(train)) (!erg);
 			ergt:=!ergt+. !erg;
 		done;
 		l:=!ergt::(!l);
@@ -124,7 +130,7 @@ let apprentissage1 (N,P) (in_data,out_data) iterations =
 	rev !l;
 ;;
 
-let apprentissage2 (N,P) (in_data,out_data) marge =
+let apprentissage2_inertiel (N,P,S) (in_data,out_data) marge =
 	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
 	if taillein<>tailleout then raise taille_incompatible;
 	let erg = ref 1. and ergt = ref 1. and l = ref [] in
@@ -157,31 +163,15 @@ let showus (N,P) (in_data,out_data) =
 	done;
 ;;
 
-(*let extension_data (ind,outd) = (*But : intégrer systématiquement le biais dans les données d'entraînement, ce qui évite de les saisir.*)
-*)
-
-(*let decoupage l in = decoupe une liste en un tableau de tableaux de taille in*)
-
-(*(* Routine test AND*);
-let (N,P) = initpmc ();;
-showus (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;0.|];[|-1.;0.|]|]);;
-apprentissage1 (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;0.|];[|-1.;0.|]|]) 10000;;
-showus (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;0.|];[|-1.;0.|]|]);;
-*)
-(* Routine test AND*)
-let (N,P) = initpmc ();;
-showus (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;0.|];[|-1.;0.|]|]);;
-apprentissage2 (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;0.|];[|-1.;0.|]|]) 0.001;;
-showus (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;0.|];[|-1.;0.|]|]);;
 
 (* Routine test OR*)
-let (N,P) = initpmc ();;
+let (N,P,S) = initpmc ();;
 showus (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;1.|];[|-1.;1.|]|]);;
 apprentissage2 (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;1.|];[|-1.;1.|]|]) 0.001;;
 showus (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;1.|];[|-1.;1.|]|]);;
 
 (* Routine test NAND *)
-let (N,P) = initpmc ();;
+let (N,P,S) = initpmc ();;
 showus (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;0.|];[|-1.;1.|];[|-1.;1.|];[|-1.;1.|]|]);;
 apprentissage2 (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;0.|];[|-1.;1.|];[|-1.;1.|];[|-1.;1.|]|]) 0.001;;
 showus (N,P) ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;0.|];[|-1.;1.|];[|-1.;1.|];[|-1.;1.|]|]);;

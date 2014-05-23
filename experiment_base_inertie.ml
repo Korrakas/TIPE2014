@@ -1,7 +1,5 @@
 (* Ce fichier contient la totalité des fonctions de base, modifiées pour pouvoir faire des expériences rapidement
 sur la base du PMC sans inertie*)
-(*TODO : ajout d'un biais et d'une regle de gestion du biais*)
-
 random__init (int_of_float (sys__time()));;
 
 let config = [|3;3;7;2|];; (* dans config, on pense à ajouter le biais dans chaque couche : le biais est en j=0 de manière SYSTEMATIQUE !*)
@@ -17,8 +15,8 @@ let print_floatvect v =
 	print_string "|]";
 ;;
 
-let initpmc () =
-	let neur, poids = make_vect tailleH [||], make_vect tailleH [||]
+let initpmc_inertiel () =
+	let neur, poids, souv = make_vect tailleH [||], make_vect tailleH [||], make_vect tailleH [||]
 	in
 	let fillp pij t =
 		for k = 1 to t-1 do (*pas de lien vers le biais*)
@@ -28,14 +26,16 @@ let initpmc () =
 	for i = 0 to tailleH - 1 do
 		neur.(i) <- make_vect config.(i) 0.;
 		poids.(i) <- make_vect config.(i) [||];
+		souv.(i) <- make_vect config.(i) [||];
 		neur.(i).(0) <- -1.;
 		if i <> tailleH - 1 then (*pas de liens externes pour la couche de sortie*) 
 		for j = 0 to config.(i) - 1 do
 			poids.(i).(j) <- make_vect config.(i+1) 0.;
+			souv.(i).(j) <- make_vect config.(i+1) 0.;
 			fillp poids.(i).(j) config.(i+1);
 		done;
 	done;
-	neur, poids;
+	neur, poids, souv;
 ;;
 
 
@@ -95,22 +95,25 @@ let creergradient (neur,poids) sortie =
 	grad;
 ;;
 
+let nu = 0.1;;
 
-let modifpoids (neur,poids) grad erg nu=
+let alpha = 0.;;
+
+let modifpoids_inertiel (neur,poids,souvenir) grad erg =
 	for i = 0 to tailleH - 2 do
 		for j = 0 to config.(i) - 1 do
 			for h = 1 to config.(i+1) -1 do (*pas besoin de toucher le "poids vers le biais" qui ne doit de toute façon pas exister (0 ?) *)
-				poids.(i).(j).(h) <- poids.(i).(j).(h) +. nu*.grad.(i+1).(h)*.(actprime erg)*.neur.(i).(j); 
+				souvenir.(i).(j).(h) <- nu*.grad.(i+1).(h)*.(actprime erg)*.neur.(i).(j) +. alpha*.souvenir.(i).(j).(h);
+				poids.(i).(j).(h) <- poids.(i).(j).(h) +. souvenir.(i).(j).(h); 
 			done;
 		done;
 	done;
 ;;
 
-let resolution = 5;; (*dans la liste ne sont intégrées que les données tous les 'resolution' pas*)
-
-let apprentissage1 (N,P) (in_data,out_data) iterations nu=
+let apprentissage1_inertiel (N,P,S) (in_data,out_data) iterations =
 	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
 	let erg=ref 1. and ergt = ref 1. and l=ref [] in
+	let souv = ref (map_vect copy_vect P) in
 	if taillein<>tailleout then raise taille_incompatible;
 	for iter = 0 to iterations-1 do
 		ergt:=0.;
@@ -118,15 +121,15 @@ let apprentissage1 (N,P) (in_data,out_data) iterations nu=
 			entree N in_data.(train);
 			propagation (N,P);
 			erg:=erreurglobale N out_data.(train);
-			modifpoids (N,P) (creergradient (N,P) out_data.(train)) (!erg) nu;
+			modifpoids_inertiel (N,P,S) (creergradient (N,P) out_data.(train)) (!erg);
 			ergt:=!ergt+. !erg;
 		done;
-		if (iter mod resolution) = 0 then l:=!ergt::(!l);
+		l:=!ergt::(!l);
 	done;
 	rev !l;
 ;;
 
-let apprentissage2 (N,P) (in_data,out_data) marge =
+let apprentissage2_inertiel (N,P,S) (in_data,out_data) marge =
 	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
 	if taillein<>tailleout then raise taille_incompatible;
 	let erg = ref 1. and ergt = ref 1. and l = ref [] in
@@ -136,28 +139,12 @@ let apprentissage2 (N,P) (in_data,out_data) marge =
 			entree N in_data.(train);
 			propagation (N,P);
 			erg := erreurglobale N out_data.(train);
-			modifpoids (N,P) (creergradient (N,P) out_data.(train)) !erg nu;
+			modifpoids (N,P) (creergradient (N,P) out_data.(train)) !erg;
 			ergt:=!ergt+. !erg;
 		done;
 	done;
 ;;
-
-let showus (N,P) (in_data,out_data) =
-	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
-	if taillein<>tailleout then raise taille_incompatible;
-	for train = 0 to taillein-1 do
-		print_floatvect in_data.(train);
-		print_string " renvoie ";
-		entree N in_data.(train);
-		propagation (N,P);
-		print_floatvect N.(tailleH-1);
-		print_string " pour un résultat attendu de ";
-		print_floatvect out_data.(train);
-		print_string " soit une erreur globale de ";
-		print_float (erreurglobale N out_data.(train));
-		print_newline ();
-	done;
-;;
+let resolution = 5;; (*dans la liste ne sont intégrées que les données tous les 'resolution' pas*)
 
 #open "graphics";;
 open_graph "";;
@@ -212,17 +199,17 @@ let rec trace_dot points mult = match points with
 
 let set_or = ([|[|-1.;1.;1.|];[|-1.;0.;0.|];[|-1.;0.;1.|];[|-1.;1.;0.|]|],[|[|-1.;1.|];[|-1.;0.|];[|-1.;1.|];[|-1.;1.|]|]);;
 
-let demontre sett tabnu =
-	clear_graph();
+let demontre_inertiel sett tabnu alpha =
 	trace_cadre 1000 600 2 30 false;
 	let n = vect_length tabnu in
 	for i = 0 to n-1 do
 		set_color (0xff5500/(i+1) + i*0x000011);
-		let (N,P) = initpmc () in
-      let bs = apprentissage1 (N,P) sett (1000*resolution) tabnu.(i) in
-      let dots = conversion bs 1 in
-      trace_dot dots 600.;
-    done;
+		let (N,P,S) = initpmc_inertiel() in
+      		let bs = apprentissage1_inertiel (N,P,S) sett (1000*resolution) tabnu.(i) alpha in
+      		let dots = conversion bs 1 in
+    		trace_dot dots 600.;
+    	done;
 ;;
-
-demontre set_or [|0.1;0.15;0.20;0.25;0.3|];; (*EXCELLENT !!!!!!*)
+clear_graph();;
+demontre_inertiel set_or [|0.1|] 0.;;
+demontre_inertiel set_or [|0.1|] 2.0;;

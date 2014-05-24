@@ -95,11 +95,7 @@ let creergradient (neur,poids) sortie =
 	grad;
 ;;
 
-let nu = 0.1;;
-
-let alpha = 0.;;
-
-let modifpoids_inertiel (neur,poids,souvenir) grad erg =
+let modifpoids_inertiel (neur,poids,souvenir) grad erg nu alpha =
 	for i = 0 to tailleH - 2 do
 		for j = 0 to config.(i) - 1 do
 			for h = 1 to config.(i+1) -1 do (*pas besoin de toucher le "poids vers le biais" qui ne doit de toute façon pas exister (0 ?) *)
@@ -110,7 +106,9 @@ let modifpoids_inertiel (neur,poids,souvenir) grad erg =
 	done;
 ;;
 
-let apprentissage1_inertiel (N,P,S) (in_data,out_data) iterations =
+let resolution = 5;; (*dans la liste ne sont intégrées que les données tous les 'resolution' pas*)
+
+let apprentissage1_inertiel (N,P,S) (in_data,out_data) iterations nu alpha =
 	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
 	let erg=ref 1. and ergt = ref 1. and l=ref [] in
 	let souv = ref (map_vect copy_vect P) in
@@ -121,15 +119,15 @@ let apprentissage1_inertiel (N,P,S) (in_data,out_data) iterations =
 			entree N in_data.(train);
 			propagation (N,P);
 			erg:=erreurglobale N out_data.(train);
-			modifpoids_inertiel (N,P,S) (creergradient (N,P) out_data.(train)) (!erg);
+			modifpoids_inertiel (N,P,S) (creergradient (N,P) out_data.(train)) (!erg) nu alpha;
 			ergt:=!ergt+. !erg;
 		done;
-		l:=!ergt::(!l);
+		if iter mod resolution = 0 then l:=!ergt::(!l);
 	done;
 	rev !l;
 ;;
 
-let apprentissage2_inertiel (N,P,S) (in_data,out_data) marge =
+let apprentissage2_inertiel (N,P,S) (in_data,out_data) marge nu alpha =
 	let (taillein,tailleout) = (vect_length in_data, vect_length out_data) in
 	if taillein<>tailleout then raise taille_incompatible;
 	let erg = ref 1. and ergt = ref 1. and l = ref [] in
@@ -139,12 +137,11 @@ let apprentissage2_inertiel (N,P,S) (in_data,out_data) marge =
 			entree N in_data.(train);
 			propagation (N,P);
 			erg := erreurglobale N out_data.(train);
-			modifpoids (N,P) (creergradient (N,P) out_data.(train)) !erg;
+			modifpoids_inertiel (N,P,S) (creergradient (N,P) out_data.(train)) !erg nu alpha;
 			ergt:=!ergt+. !erg;
 		done;
 	done;
 ;;
-let resolution = 5;; (*dans la liste ne sont intégrées que les données tous les 'resolution' pas*)
 
 #open "graphics";;
 open_graph "";;
@@ -211,5 +208,5 @@ let demontre_inertiel sett tabnu alpha =
     	done;
 ;;
 clear_graph();;
+demontre_inertiel set_or [|0.1;0.1;0.1;0.1;0.1;0.1;0.1;0.1;0.1|] 0.;;
 demontre_inertiel set_or [|0.1|] 0.;;
-demontre_inertiel set_or [|0.1|] 2.0;;

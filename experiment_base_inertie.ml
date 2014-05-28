@@ -20,7 +20,7 @@ let initpmc_inertiel () =
    in
       let fillp pij t =
          for k = 1 to t - 1 do (*pas de lien vers le biais*)
-            pij.(k) <- random__float 0.1 -. 0.05; (* on remplit le tableau des poids synaptiques aléatoirement entre 0.5 et 1.*)
+            pij.(k) <- random__float 0.1 -. 0.05; (* on remplit le tableau des poids synaptiques aléatoirement entre -0.05 et +0.05*)
          done;
       in
          for i = 0 to tailleH - 1 do

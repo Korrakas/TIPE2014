@@ -106,7 +106,7 @@ let modifpoids_inertiel (neur, poids, souvenir) grad erg nu alpha =
    done;
 ;;
 
-let resolution = 3;;(*dans la liste ne sont intégrées que les données tous les 'resolution' pas*)
+let resolution = 6;;(*dans la liste ne sont intégrées que les données tous les 'resolution' pas*)
 
 let apprentissage1_inertiel (N, P, S) (in_data, out_data) iterations nu alpha =
    let (taillein, tailleout) = (vect_length in_data, vect_length out_data) in
@@ -196,17 +196,22 @@ let rec trace_dot points mult = match points with
 
 let set_or = ([|[|- 1.; 1.; 1.|]; [|- 1.; 0.; 0.|]; [|- 1.; 0.; 1.|]; [|- 1.; 1.; 0.|]|], [|[|- 1.; 1.|]; [|- 1.; 0.|]; [|- 1.; 1.|]; [|- 1.; 1.|]|]);;
 
-let demontre_inertiel sett tabnu alpha =
+let demontre_inertiel sett tabnu tabalpha =
    trace_cadre 1000 600 2 30 false;
-   let n = vect_length tabnu in
-      for i = 0 to n - 1 do
-         set_color (0xff5500 / (i + 1) + i * 0x000011);
-         let (N, P, S) = initpmc_inertiel () in
-            let bs = apprentissage1_inertiel (N, P, S) sett (1000 * resolution) tabnu.(i) alpha in
-               let dots = conversion bs 1 in
-                  trace_dot dots 600.;
-      done;
+   let n = vect_length tabnu and m = vect_length tabalpha in
+      let (Ni, Pi, Si) = initpmc_inertiel () in
+         for j = 0 to m - 1 do
+            for i = 0 to n - 1 do
+               set_color (0x550000 * i + 0x000033 * j);
+               let (N, P, S) = (map_vect copy_vect Ni, map_vect (map_vect copy_vect) Pi, map_vect (map_vect copy_vect) Si) in
+                  let bs = apprentissage1_inertiel (N, P, S) sett (1000 * resolution) tabnu.(i) tabalpha.(j) in
+                     let dots = conversion bs 1 in
+                        trace_dot dots 600.;
+                        moveto (300 + 220 * j) (800 - 20 * i);
+                        draw_string ("nu = " ^ (string_of_float tabnu.(i)) ^ " et alpha = " ^ (string_of_float tabalpha.(j)));
+            done;
+         done;
 ;;
 clear_graph ();;
-demontre_inertiel set_or [|0.25|] 0.;;
-demontre_inertiel set_or [|0.25|] 0.6;;
+demontre_inertiel set_or [|0.21; 0.25|] [|0.71; 0.8|];; (*meilleurs coef sur cette expérience : nu = 0.21 et alpha = 0.8 *)
+demontre_inertiel set_or [|0.1; 0.2; 0.3|] 0.6;;

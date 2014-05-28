@@ -1,5 +1,5 @@
 (* Ce fichier contient la totalité des fonctions de base, modifiées pour pouvoir faire des expériences rapidement
-sur la base du PMC sans inertie*)
+sur la base du PMC AVEC inertie*)
 random__init (int_of_float (sys__time ()));;
 
 let config = [|3; 3; 7; 2|];;(* dans config, on pense à ajouter le biais dans chaque couche : le biais est en j=0 de manière SYSTEMATIQUE !*)

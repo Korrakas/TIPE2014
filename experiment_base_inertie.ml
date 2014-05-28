@@ -214,4 +214,3 @@ let demontre_inertiel sett tabnu tabalpha =
 ;;
 clear_graph ();;
 demontre_inertiel set_or [|0.21; 0.25|] [|0.71; 0.8|];; (*meilleurs coef sur cette expérience : nu = 0.21 et alpha = 0.8 *)
-demontre_inertiel set_or [|0.1; 0.2; 0.3|] 0.6;;

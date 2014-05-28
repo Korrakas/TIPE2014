@@ -1,5 +1,10 @@
 (* Ce fichier contient la totalité des fonctions de base, modifiées pour pouvoir faire des expériences rapidement
 sur la base du PMC AVEC inertie*)
+
+#open "graphics";;
+open_graph "";;
+
+
 random__init (int_of_float (sys__time ()));;
 
 let config = [|3; 3; 7; 2|];;(* dans config, on pense à ajouter le biais dans chaque couche : le biais est en j=0 de manière SYSTEMATIQUE !*)
@@ -20,7 +25,7 @@ let initpmc_inertiel () =
    in
       let fillp pij t =
          for k = 1 to t - 1 do (*pas de lien vers le biais*)
-            pij.(k) <- random__float 0.1 -. 0.05; (* on remplit le tableau des poids synaptiques aléatoirement entre -0.05 et +0.05*)
+            pij.(k) <- random__float 0.1 -. 0.05; (* choisir 0. ici pour des expériences plus safe*) (* on remplit le tableau des poids synaptiques aléatoirement entre -0.05 et +0.05*)
          done;
       in
          for i = 0 to tailleH - 1 do
@@ -143,9 +148,6 @@ let apprentissage2_inertiel (N, P, S) (in_data, out_data) marge nu alpha =
          done;
 ;;
 
-#open "graphics";;
-open_graph "";;
-
 let trace_cadre tx ty pasx pasy gridbool = (*trace un cadre gradué, les tailles sont en px*)
    set_color 0x000000;
    let sx = size_x () and sy = size_y () in
@@ -202,7 +204,7 @@ let demontre_inertiel sett tabnu tabalpha =
       let (Ni, Pi, Si) = initpmc_inertiel () in
          for j = 0 to m - 1 do
             for i = 0 to n - 1 do
-               set_color (0x550000 * i + 0x000033 * j);
+               set_color (0x550000 * i + 0x004400 * j);
                let (N, P, S) = (map_vect copy_vect Ni, map_vect (map_vect copy_vect) Pi, map_vect (map_vect copy_vect) Si) in
                   let bs = apprentissage1_inertiel (N, P, S) sett (1000 * resolution) tabnu.(i) tabalpha.(j) in
                      let dots = conversion bs 1 in
@@ -213,4 +215,4 @@ let demontre_inertiel sett tabnu tabalpha =
          done;
 ;;
 clear_graph ();;
-demontre_inertiel set_or [|0.21; 0.25|] [|0.71; 0.8|];; (*meilleurs coef sur cette expérience : nu = 0.21 et alpha = 0.8 *)
+demontre_inertiel set_or [|0.15; 0.2|] [|0.6; 0.65|];; (*meilleurs coef sur cette expérience : nu = 0.21 et alpha = 0.8 en général, 0.15 et 0.65 en dépostulant le caractère aléatoire des poids initiaux du PMC pour 0. *)
